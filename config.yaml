@@ -1,0 +1,59 @@
+# ai_editor_bot কনফিগারেশন
+# গোপনীয় জিনিস (টোকেন/API key) এখানে না রেখে environment variable-এ রাখুন:
+#   TELEGRAM_BOT_TOKEN, GEMINI_API_KEYS, ALLOWED_USER_IDS
+
+repo_path: "/path/to/your/repo"          # আপনার লোকাল ক্লোন করা রিপোর পাথ
+default_branch: "main"                    # বেস ব্রাঞ্চের নাম (আপনার রিপোতে "master" হলে বদলে দিন)
+
+pipeline:
+  max_retries_per_file: 3                 # একটা ফাইলে সর্বোচ্চ কয়বার আবার চেষ্টা করবে
+  max_total_files: 5                      # একটা /edit-এ সর্বোচ্চ কয়টা ফাইল ছুঁতে পারবে
+  full_rewrite_line_threshold: 150        # এর বেশি লাইনের ফাইলে আগে diff চেষ্টা করবে, ছোট ফাইলে সরাসরি পুরো রিরাইট
+  require_push_confirmation: true         # true হলে push করার আগে টেলিগ্রামে বাটনে confirm করতে হবে
+
+models:
+  light: "gemini-1.5-flash"               # সহজ/যান্ত্রিক স্টেজ (locate)
+  strong: "gemini-1.5-pro"                # জটিল রিজনিং স্টেজ (diagnose/plan/implement/review/approve)
+  escalation: "gemini-1.5-pro"            # বারবার retry ফেইল করলে শেষ চেষ্টায় এই মডেলে switch
+
+ignore_dirs:
+  - ".git"
+  - "node_modules"
+  - "__pycache__"
+  - "venv"
+  - ".venv"
+  - "dist"
+  - "build"
+  - ".idea"
+  - ".vscode"
+
+# এই প্যাটার্নের ফাইল AI কখনো এডিট করতে পারবে না (locator স্টেজেই বাদ পড়বে)
+blocklist_files:
+  - ".env"
+  - ".env.*"
+  - "*.pem"
+  - "*.key"
+  - "**/secrets*"
+  - "**/*secret*"
+  - ".git/*"
+  - "**/id_rsa*"
+
+# ফাইল extension অনুযায়ী কোন কমান্ড দিয়ে deterministic syntax check হবে
+# (সিস্টেমে টুলটা না থাকলে স্বয়ংক্রিয়ভাবে স্কিপ হয়ে যাবে)
+syntax_checkers:
+  ".py": ["python3", "-m", "py_compile"]
+  ".js": ["node", "--check"]
+  ".jsx": ["node", "--check"]
+  ".mjs": ["node", "--check"]
+  ".ts": ["node", "--check"]
+  ".php": ["php", "-l"]
+
+# ফাইল extension অনুযায়ী import/require regex — dependency-context স্টেজ এগুলো দিয়ে
+# সংশ্লিষ্ট ফাইল খুঁজে বের করে
+import_patterns:
+  ".py": ["^\\s*from\\s+([\\w.]+)\\s+import", "^\\s*import\\s+([\\w.]+)"]
+  ".js": ["require\\(['\"]([^'\"]+)['\"]\\)", "from\\s+['\"]([^'\"]+)['\"]"]
+  ".jsx": ["require\\(['\"]([^'\"]+)['\"]\\)", "from\\s+['\"]([^'\"]+)['\"]"]
+  ".ts": ["from\\s+['\"]([^'\"]+)['\"]"]
+  ".php": ["require(?:_once)?\\s*\\(?['\"]([^'\"]+)['\"]"]
+  ".html": ["<script[^>]*src=[\"']([^\"']+)[\"']", "<link[^>]*href=[\"']([^\"']+)[\"']"]
