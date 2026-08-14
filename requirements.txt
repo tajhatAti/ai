@@ -1,3 +1,5 @@
 pyTelegramBotAPI
 google-generativeai
 PyYAML
+Flask
+flask
